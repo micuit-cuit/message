@@ -1,0 +1,20 @@
+{
+  "name": "api-messagerie",
+  "version": "1.0.0",
+  "description": "API de messagerie (Express + Sequelize/SQLite + WebSocket + long polling)",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,5 @@
+bun.lock
+clone-remote-db.js
+node_modules/
+lycéeAppChat/
+data/
