@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Messages</title>
+<style>
+  :root{
+    --bg:#10161c;
+    --panel:#161e26;
+    --panel-2:#1d2630;
+    --line:#26323d;
+    --text:#eef2f5;
+    --text-dim:#8b9aa6;
+    --sent:#1f8a6e;
+    --sent-text:#eafff6;
+    --recv:#232d37;
+    --accent:#e8a33d;
+    --danger:#d9644f;
+    --radius:18px;
+    color-scheme: dark;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: -apple-system, "SF Pro Rounded", "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow:hidden;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  #app{ height:100%; display:flex; justify-content:center; }
+  .shell{
+    width:100%; max-width:480px; height:100%;
+    display:flex; flex-direction:column;
+    background:var(--panel);
+    position:relative;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+
+  /* ---------- Ecran de connexion ---------- */
+  .login-screen{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    gap:14px; padding:32px 28px;
+  }
+  .login-screen h1{
+    font-size:26px; margin:0 0 4px; font-weight:700; letter-spacing:-0.02em;
+  }
+  .login-screen p.sub{ margin:0 0 18px; color:var(--text-dim); font-size:14px; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; color:var(--text-dim); }
+  .field input{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:12px 14px; border-radius:12px; font-size:15px; outline:none;
+  }
+  .field input:focus{ border-color:var(--sent); }
+  details.adv{ color:var(--text-dim); font-size:13px; }
+  details.adv summary{ cursor:pointer; padding:4px 0; }
+  .btn{
+    border:none; border-radius:14px; padding:13px 16px; font-size:15px; font-weight:600;
+    cursor:pointer; transition:transform .08s ease, opacity .15s ease;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn-primary{ background:var(--sent); color:var(--sent-text); }
+  .btn-ghost{ background:transparent; color:var(--text-dim); }
+  .err{ color:var(--danger); font-size:13px; min-height:16px; }
+
+  /* ---------- Liste des conversations ---------- */
+  .screen{ position:absolute; inset:0; display:flex; flex-direction:column; background:var(--panel);
+    transform:translateX(100%); transition:transform .28s cubic-bezier(.3,.8,.4,1); }
+  .screen.active{ transform:translateX(0); }
+  .screen.base{ position:relative; transform:none; transition:none; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line);
+    padding-top:calc(14px + env(safe-area-inset-top,0px));
+  }
+  .topbar h2{ margin:0; font-size:19px; font-weight:700; }
+  .icon-btn{
+    background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn.accent{ color:var(--accent); }
+
+  .conv-list{ flex:1; overflow-y:auto; }
+  .conv{
+    display:flex; gap:12px; align-items:center; padding:12px 16px;
+    border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .conv:active{ background:var(--panel-2); }
+  .avatar{
+    width:42px; height:42px; border-radius:50%; background:var(--panel-2);
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent);
+    flex-shrink:0; font-size:15px; border:1px solid var(--line);
+  }
+  .conv-main{ flex:1; min-width:0; }
+  .conv-top{ display:flex; justify-content:space-between; align-items:baseline; }
+  .conv-name{ font-weight:600; font-size:15px; }
+  .conv-time{ font-size:11px; color:var(--text-dim); flex-shrink:0; }
+  .conv-preview{
+    color:var(--text-dim); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .empty{ padding:40px 24px; text-align:center; color:var(--text-dim); font-size:14px; line-height:1.5; }
+
+  /* ---------- Fil de discussion ---------- */
+  .thread-messages{ flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:6px; }
+  .bubble-row{ display:flex; }
+  .bubble-row.me{ justify-content:flex-end; }
+  .bubble{
+    max-width:76%; padding:9px 13px; border-radius:var(--radius); font-size:15px; line-height:1.35;
+    word-wrap:break-word; white-space:pre-wrap;
+  }
+  .bubble-row.me .bubble{ background:var(--sent); color:var(--sent-text); border-bottom-right-radius:5px; }
+  .bubble-row.other .bubble{ background:var(--recv); color:var(--text); border-bottom-left-radius:5px; }
+  .bubble .subj{ display:block; font-size:11px; opacity:0.75; margin-bottom:2px; font-weight:600; }
+
+  .composer{
+    display:flex; gap:8px; padding:10px 10px; border-top:1px solid var(--line); align-items:flex-end;
+  }
+  .composer textarea{
+    flex:1; resize:none; max-height:120px; background:var(--panel-2); color:var(--text);
+    border:1px solid var(--line); border-radius:18px; padding:10px 14px; font-size:15px; outline:none;
+    font-family:inherit;
+  }
+  .composer textarea:focus{ border-color:var(--sent); }
+  .send-btn{
+    width:40px; height:40px; border-radius:50%; background:var(--sent); color:var(--sent-text);
+    border:none; font-size:17px; cursor:pointer; flex-shrink:0;
+  }
+  .send-btn:disabled{ opacity:0.4; }
+
+  /* ---------- Nouveau message ---------- */
+  .pick-list{ flex:1; overflow-y:auto; }
+  .pick-row{ padding:13px 16px; border-bottom:1px solid var(--line); cursor:pointer; font-size:15px; }
+  .pick-row:active{ background:var(--panel-2); }
+
+  .status-dot{
+    width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-right:6px; display:inline-block;
+  }
+  .status-dot.on{ background:var(--sent); }
+
+  ::-webkit-scrollbar{ width:0; height:0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="shell">
+
+    <!-- Connexion -->
+    <div id="loginScreen" class="login-screen">
+      <h1>Messages</h1>
+      <p class="sub">Connecte-toi avec ton compte api_messagerie.</p>
+      <div class="field">
+        <label>Identifiant</label>
+        <input id="loginUser" autocomplete="username" placeholder="NomUtilisateur">
+      </div>
+      <div class="field">
+        <label>Mot de passe</label>
+        <input id="loginPass" type="password" autocomplete="current-password" placeholder="MotDePasse">
+      </div>
+      <details class="adv">
+        <summary>Serveur</summary>
+        <div class="field" style="margin-top:8px;">
+          <input id="loginServer" placeholder="laisser vide = même serveur que cette page">
+        </div>
+      </details>
+      <div class="err" id="loginErr"></div>
+      <button class="btn btn-primary" id="loginBtn">Se connecter</button>
+    </div>
+
+    <!-- Liste des conversations -->
+    <div id="listScreen" class="screen base" style="display:none;">
+      <div class="topbar">
+        <div><span class="status-dot" id="wsDot"></span><h2 style="display:inline;">Messages</h2></div>
+        <div>
+          <button class="icon-btn accent" id="newBtn" title="Nouveau message">✎</button>
+          <button class="icon-btn" id="logoutBtn" title="Déconnexion">⏻</button>
+        </div>
+      </div>
+      <div class="conv-list" id="convList"></div>
+    </div>
+
+    <!-- Fil de discussion -->
+    <div id="threadScreen" class="screen">
+      <div class="topbar">
+        <button class="icon-btn" id="backBtn">‹</button>
+        <h2 id="threadName"></h2>
+        <span style="width:34px;"></span>
+      </div>
+      <div class="thread-messages" id="threadMessages"></div>
+      <div class="composer">
+        <textarea id="composerInput" rows="1" placeholder="Message"></textarea>
+        <button class="send-btn" id="sendBtn">➤</button>
+      </div>
+    </div>
+
+    <!-- Nouveau message -->
+    <div id="pickScreen" class="screen">
+      <div class="topbar">
+        <button class="icon-btn" id="pickBackBtn">‹</button>
+        <h2>Nouveau message</h2>
+        <span style="width:34px;"></span>
+      </div>
+      <div class="pick-list" id="pickList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const screens = { list: $("listScreen"), thread: $("threadScreen"), pick: $("pickScreen") };
+
+  let state = {
+    user: null, pass: null, base: "",
+    messages: [],      // tous les messages connus (sent + received)
+    current: null,      // contact actuellement ouvert
+    ws: null,
+  };
+
+  function show(name){
+    Object.values(screens).forEach(s => s.classList.remove("active"));
+    if(name !== "list") screens[name].classList.add("active");
+  }
+
+  function apiUrl(path){ return (state.base || "") + path; }
+
+  async function apiGet(query){
+    const res = await fetch(apiUrl("/") + query);
+    return res.json();
+  }
+  async function apiPost(body){
+    const res = await fetch(apiUrl("/"), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  }
+
+  // ---------------- Connexion ----------------
+
+  $("loginBtn").addEventListener("click", async () => {
+    const user = $("loginUser").value.trim();
+    const pass = $("loginPass").value;
+    const base = $("loginServer").value.trim().replace(/\/+$/,"");
+    $("loginErr").textContent = "";
+    if(!user || !pass){ $("loginErr").textContent = "Renseigne un identifiant et un mot de passe."; return; }
+
+    state.base = base;
+    try {
+      const r = await apiGet(`?NomUtilisateur=${encodeURIComponent(user)}&MotDePasse=${encodeURIComponent(pass)}`);
+      if(r.status !== "success"){
+        $("loginErr").textContent = r.message || "Connexion refusée.";
+        return;
+      }
+    } catch(e){
+      $("loginErr").textContent = "Serveur injoignable.";
+      return;
+    }
+
+    state.user = user; state.pass = pass;
+    localStorage.setItem("msg-session", JSON.stringify({ user, pass, base }));
+    await enterApp();
+  });
+
+  $("logoutBtn").addEventListener("click", () => {
+    localStorage.removeItem("msg-session");
+    if(state.ws) state.ws.close();
+    state = { user:null, pass:null, base:"", messages:[], current:null, ws:null };
+    $("loginScreen").style.display = "flex";
+    $("listScreen").style.display = "none";
+    show("list");
+  });
+
+  async function enterApp(){
+    $("loginScreen").style.display = "none";
+    $("listScreen").style.display = "flex";
+    await loadAllMessages();
+    renderConvList();
+    connectWs();
+  }
+
+  // ---------------- Chargement des messages ----------------
+
+  async function loadAllMessages(){
+    const [recv, sent] = await Promise.all([
+      apiGet(`?NomDestinataire=${encodeURIComponent(state.user)}`),
+      apiGet(`?NomExpediteur=${encodeURIComponent(state.user)}`),
+    ]);
+    const list = [];
+    if(recv.status === "success") list.push(...recv.data);
+    if(sent.status === "success") list.push(...sent.data);
+    const byId = new Map();
+    for(const m of list) byId.set(m.idMessage, m);
+    state.messages = [...byId.values()].sort((a,b) => Number(a.idMessage) - Number(b.idMessage));
+  }
+
+  function contactOf(m){ return m.NomExpediteur === state.user ? m.NomDestinataire : m.NomExpediteur; }
+
+  function conversations(){
+    const map = new Map();
+    for(const m of state.messages){
+      const c = contactOf(m);
+      if(!map.has(c)) map.set(c, []);
+      map.get(c).push(m);
+    }
+    return [...map.entries()]
+      .map(([contact, msgs]) => ({ contact, msgs, last: msgs[msgs.length - 1] }))
+      .sort((a,b) => Number(b.last.idMessage) - Number(a.last.idMessage));
+  }
+
+  function initials(name){ return (name || "?").trim().slice(0,2).toUpperCase(); }
+
+  // ---------------- Rendu : liste ----------------
+
+  function renderConvList(){
+    const el = $("convList");
+    const convs = conversations();
+    if(convs.length === 0){
+      el.innerHTML = `<div class="empty">Aucune conversation pour l'instant.<br>Touche ✎ pour écrire à quelqu'un.</div>`;
+      return;
+    }
+    el.innerHTML = "";
+    for(const c of convs){
+      const row = document.createElement("div");
+      row.className = "conv";
+      row.innerHTML = `
+        <div class="avatar">${initials(c.contact)}</div>
+        <div class="conv-main">
+          <div class="conv-top">
+            <span class="conv-name">${escapeHtml(c.contact)}</span>
+            <span class="conv-time">#${c.last.idMessage}</span>
+          </div>
+          <div class="conv-preview">${c.last.NomExpediteur === state.user ? "Toi : " : ""}${escapeHtml(c.last.Contenu)}</div>
+        </div>`;
+      row.addEventListener("click", () => openThread(c.contact));
+      el.appendChild(row);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // ---------------- Rendu : fil ----------------
+
+  function openThread(contact){
+    state.current = contact;
+    $("threadName").textContent = contact;
+    renderThread();
+    show("thread");
+    setTimeout(() => $("composerInput").focus(), 250);
+  }
+
+  function renderThread(){
+    const el = $("threadMessages");
+    const msgs = state.messages.filter(m => contactOf(m) === state.current);
+    el.innerHTML = "";
+    for(const m of msgs){
+      const mine = m.NomExpediteur === state.user;
+      const row = document.createElement("div");
+      row.className = "bubble-row " + (mine ? "me" : "other");
+      row.innerHTML = `<div class="bubble">${m.Sujet ? `<span class="subj">${escapeHtml(m.Sujet)}</span>` : ""}${escapeHtml(m.Contenu)}</div>`;
+      el.appendChild(row);
+    }
+    el.scrollTop = el.scrollHeight;
+  }
+
+  $("backBtn").addEventListener("click", () => { state.current = null; show("list"); });
+
+  async function sendCurrent(){
+    const input = $("composerInput");
+    const content = input.value.trim();
+    if(!content || !state.current) return;
+    input.value = "";
+    autoGrow(input);
+
+    const payload = { NomDestinataire: state.current, Contenu: content };
+    let ok = false;
+    if(state.ws && state.ws.readyState === WebSocket.OPEN){
+      state.ws.send(JSON.stringify({ type:"send", NomDestinataire: state.current, Contenu: content }));
+      ok = true;
+    } else {
+      const r = await apiPost({ NomExpediteur: state.user, ...payload });
+      ok = r.status === "success";
+    }
+    if(ok){
+      state.messages.push({
+        idMessage: "tmp" + Date.now(),
+        NomExpediteur: state.user, NomDestinataire: state.current,
+        Sujet:"", Contenu: content,
+      });
+      renderThread();
+      renderConvList();
+    }
+  }
+
+  $("sendBtn").addEventListener("click", sendCurrent);
+  $("composerInput").addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendCurrent(); }
+  });
+  $("composerInput").addEventListener("input", (e) => autoGrow(e.target));
+  function autoGrow(ta){ ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; }
+
+  // ---------------- Nouveau message ----------------
+
+  $("newBtn").addEventListener("click", async () => {
+    show("pick");
+    const el = $("pickList");
+    el.innerHTML = `<div class="empty">Chargement…</div>`;
+    try {
+      const r = await apiGet("?all=users");
+      const users = (r.status === "success" ? r.data : [])
+        .map(u => u.NomUtilisateur)
+        .filter(n => n !== state.user);
+      if(users.length === 0){ el.innerHTML = `<div class="empty">Aucun autre utilisateur trouvé.</div>`; return; }
+      el.innerHTML = "";
+      for(const name of users){
+        const row = document.createElement("div");
+        row.className = "pick-row";
+        row.textContent = name;
+        row.addEventListener("click", () => { show("thread"); openThread(name); });
+        el.appendChild(row);
+      }
+    } catch(e){
+      el.innerHTML = `<div class="empty">Impossible de charger les utilisateurs.</div>`;
+    }
+  });
+  $("pickBackBtn").addEventListener("click", () => show("list"));
+
+  // ---------------- WebSocket temps réel ----------------
+
+  function connectWs(){
+    try{
+      const httpBase = state.base || window.location.origin;
+      const wsBase = httpBase.replace(/^http/, "ws");
+      const url = `${wsBase}/ws?NomUtilisateur=${encodeURIComponent(state.user)}&MotDePasse=${encodeURIComponent(state.pass)}`;
+      const ws = new WebSocket(url);
+      state.ws = ws;
+      ws.addEventListener("open", () => $("wsDot").classList.add("on"));
+      ws.addEventListener("close", () => { $("wsDot").classList.remove("on"); setTimeout(connectWs, 3000); });
+      ws.addEventListener("error", () => ws.close());
+      ws.addEventListener("message", (ev) => {
+        let data; try{ data = JSON.parse(ev.data); } catch(e){ return; }
+        if(data.type === "message" && data.data){
+          state.messages.push(data.data);
+          if(state.current === contactOf(data.data)) renderThread();
+          renderConvList();
+        }
+      });
+    } catch(e){ /* pas grave, on retentera */ }
+  }
+
+  // ---------------- Démarrage ----------------
+
+  const saved = localStorage.getItem("msg-session");
+  if(saved){
+    try{
+      const s = JSON.parse(saved);
+      state.user = s.user; state.pass = s.pass; state.base = s.base || "";
+      enterApp();
+    } catch(e){ /* session invalide, on repart de l'écran de connexion */ }
+  }
+
+})();
+</script>
+</body>
+</html>

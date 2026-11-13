@@ -89,7 +89,7 @@ router.get("/", async (req, res) => {
     return ok(res, { data: rows.map(messageToApi) });
   }
 
-  return fail(res, "No request found", "failed");
+  return Object.keys(q).length ? fail(res, "No request found", "failed") : res.sendFile(process.cwd() + "/index.html");
 });
 
 // Création d'un message ou d'un utilisateur selon les champs du JSON.
